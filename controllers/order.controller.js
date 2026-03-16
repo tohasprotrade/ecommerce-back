@@ -3,6 +3,7 @@ import CartProductModel from "../models/cartproduct.model.js";
 import OrderModel from "../models/order.model.js";
 import UserModel from "../models/user.model.js";
 import AddressModel from "../models/address.model.js";
+import ProductModel from "../models/product.model.js";
 import bcryptjs from 'bcryptjs';
 import mongoose from "mongoose";
 
@@ -10,6 +11,17 @@ import mongoose from "mongoose";
     try {
         const userId = request.userId // auth middleware 
         const { list_items, totalAmt, addressId,subTotalAmt } = request.body 
+
+        // Decrease stock for each product
+        for (const item of list_items) {
+            const product = await ProductModel.findById(item.productId._id)
+            if (product && product.stock) {
+                const newStock = product.stock - (item.quantity || 1)
+                await ProductModel.findByIdAndUpdate(item.productId._id, { 
+                    stock: newStock > 0 ? newStock : 0 
+                })
+            }
+        }
 
         const payload = list_items.map(el => {
             return({
@@ -171,6 +183,17 @@ export async function webhookStripe(request,response){
     
       const order = await OrderModel.insertMany(orderProduct)
 
+        //Decrease stock for each product
+        for (const item of orderProduct) {
+            const product = await ProductModel.findById(item.productId)
+            if (product && product.stock) {
+                const newStock = product.stock - 1
+                await ProductModel.findByIdAndUpdate(item.productId, { 
+                    stock: newStock > 0 ? newStock : 0 
+                })
+            }
+        }
+
         console.log(order)
         if(Boolean(order[0])){
             const removeCartItems = await  UserModel.findByIdAndUpdate(userId,{
@@ -284,6 +307,18 @@ export async function guestCheckoutController(request,response){
 
         const savedAddress = await address.save()
 
+        //Decrease stock for each product
+        for (const item of list_items) {
+            const productId = item.productId?._id || item.productId
+            const product = await ProductModel.findById(productId)
+            if (product && product.stock) {
+                const newStock = product.stock - (item.quantity || 1)
+                await ProductModel.findByIdAndUpdate(productId, { 
+                    stock: newStock > 0 ? newStock : 0 
+                })
+            }
+        }
+
         //Create order
         const orderPayload = list_items.map(el => ({
             userId : userId,
@@ -323,6 +358,114 @@ export async function guestCheckoutController(request,response){
             message : error.message || error,
             error : true,
             success : false
+        })
+    }
+}
+
+//Get all orders for admin report
+export async function getAllOrdersController(request, response) {
+    try {
+        const { page = 1, limit = 50, search, paymentStatus } = request.query
+
+        const query = {}
+
+        if (search) {
+            query.$or = [
+                { orderId: { $regex: search, $options: 'i' } },
+                { 'guestInfo.name': { $regex: search, $options: 'i' } },
+                { 'guestInfo.mobile': { $regex: search, $options: 'i' } }
+            ]
+        }
+
+        if (paymentStatus) {
+            query.payment_status = paymentStatus
+        }
+
+        const skip = (page - 1) * limit
+
+        const [orders, totalCount] = await Promise.all([
+            OrderModel.find(query)
+                .populate('userId', 'name email mobile')
+                .populate('productId', 'name stock')
+                .populate('delivery_address')
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(Number(limit)),
+            OrderModel.countDocuments(query)
+        ])
+
+        const totalAmount = orders.reduce((sum, order) => sum + (order.totalAmt || 0), 0)
+
+        return response.json({
+            message: 'Orders list',
+            data: orders,
+            totalAmount,
+            totalOrders: totalCount,
+            totalCount,
+            totalPage: Math.ceil(totalCount / limit),
+            page: Number(page),
+            error: false,
+            success: true
+        })
+    } catch (error) {
+        return response.status(500).json({
+            message: error.message || error,
+            error: true,
+            success: false
+        })
+    }
+}
+
+//Get all products with stock for admin report
+export async function getAllProductsStockController(request, response) {
+    try {
+        const { page = 1, limit = 50, search } = request.query
+
+        const query = { publish: true }
+
+        if (search) {
+            query.$or = [
+                { name: { $regex: search, $options: 'i' } },
+                { description: { $regex: search, $options: 'i' } }
+            ]
+        }
+
+        const skip = (page - 1) * limit
+
+        const [products, totalCount] = await Promise.all([
+            ProductModel.find(query)
+                .populate('category', 'name')
+                .populate('subCategory', 'name')
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(Number(limit)),
+            ProductModel.countDocuments(query)
+        ])
+
+        const totalStock = products.reduce((sum, product) => sum + (product.stock || 0), 0)
+        const outOfStock = products.filter(p => !p.stock || p.stock <= 0).length
+        const lowStock = products.filter(p => p.stock > 0 && p.stock <= 10).length
+
+        return response.json({
+            message: 'Products stock list',
+            data: products,
+            summary: {
+                totalProducts: totalCount,
+                totalStock,
+                outOfStock,
+                lowStock
+            },
+            totalCount,
+            totalPage: Math.ceil(totalCount / limit),
+            page: Number(page),
+            error: false,
+            success: true
+        })
+    } catch (error) {
+        return response.status(500).json({
+            message: error.message || error,
+            error: true,
+            success: false
         })
     }
 }
