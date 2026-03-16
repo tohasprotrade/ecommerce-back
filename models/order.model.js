@@ -42,6 +42,15 @@ const orderSchema = new mongoose.Schema({
         type : String,
         default : ""
     },
+    delivery_date : {
+        type : Date,
+        default : null
+    },
+    order_status : {
+        type : String,
+        enum : ["Pending", "Processing", "Shipped", "Delivered", "Cancelled"],
+        default : "Pending"
+    },
     guestInfo: {
         name: String,
         mobile: String

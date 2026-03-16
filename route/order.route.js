@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import auth from '../middleware/auth.js'
 import { admin } from '../middleware/Admin.js'
-import { CashOnDeliveryOrderController, getOrderDetailsController, paymentController, webhookStripe, guestCheckoutController, getAllOrdersController, getAllProductsStockController } from '../controllers/order.controller.js'
+import { CashOnDeliveryOrderController, getOrderDetailsController, paymentController, webhookStripe, guestCheckoutController, getAllOrdersController, getAllProductsStockController, updateOrderController } from '../controllers/order.controller.js'
 
 const orderRouter = Router()
 
@@ -14,5 +14,8 @@ orderRouter.post('/guest-checkout',guestCheckoutController)
 //Admin Report APIs
 orderRouter.get('/all-orders', auth, admin, getAllOrdersController)
 orderRouter.get('/all-products-stock', auth, admin, getAllProductsStockController)
+
+//Update order (delivery date, status) - Admin/Super Admin
+orderRouter.put('/update-order', auth, admin, updateOrderController)
 
 export default orderRouter

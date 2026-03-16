@@ -469,3 +469,52 @@ export async function getAllProductsStockController(request, response) {
         })
     }
 }
+
+//Update order (delivery date, status) - Admin/Super Admin
+export async function updateOrderController(request, response) {
+    try {
+        const { orderId, delivery_date, order_status } = request.body
+
+        if (!orderId) {
+            return response.status(400).json({
+                message: "Order ID is required",
+                error: true,
+                success: false
+            })
+        }
+
+        const updateData = {}
+
+        if (delivery_date) {
+            updateData.delivery_date = new Date(delivery_date)
+        }
+
+        if (order_status) {
+            updateData.order_status = order_status
+        }
+
+        const updatedOrder = await OrderModel.findByIdAndUpdate(orderId, updateData, { new: true })
+
+        if (!updatedOrder) {
+            return response.status(404).json({
+                message: "Order not found",
+                error: true,
+                success: false
+            })
+        }
+
+        return response.json({
+            message: "Order updated successfully",
+            data: updatedOrder,
+            error: false,
+            success: true
+        })
+
+    } catch (error) {
+        return response.status(500).json({
+            message: error.message || error,
+            error: true,
+            success: false
+        })
+    }
+}
