@@ -34,31 +34,37 @@ export async function registerUserController(request, response) {
         const salt = await bcryptjs.genSalt(10)
         const hashPassword = await bcryptjs.hash(password, salt)
 
+        const otp = generatedOtp()
+        const expireTime = new Date() + 60 * 60 * 1000 // 1hr
+
         const payload = {
             name,
             email,
-            password: hashPassword
+            password: hashPassword,
+            verify_email_otp: otp,
+            verify_email_expiry: new Date(expireTime).toISOString()
         }
 
         const newUser = new UserModel(payload)
         const save = await newUser.save()
 
-        const VerifyEmailUrl = `${process.env.FRONTEND_URL}/verify-email?code=${save?._id}`
-
-        const verifyEmail = await sendEmail({
+        await sendEmail({
             sendTo: email,
-            subject: "Verify email from binkeyit",
+            subject: "Verify email from Gram2ghor",
             html: verifyEmailTemplate({
                 name,
-                url: VerifyEmailUrl
+                otp: otp
             })
         })
 
         return response.json({
-            message: "User register successfully",
+            message: "User register successfully. Please verify your email.",
             error: false,
             success: true,
-            data: save
+            data: {
+                email: save.email,
+                _id: save._id
+            }
         })
 
     } catch (error) {
@@ -72,32 +78,83 @@ export async function registerUserController(request, response) {
 
 export async function verifyEmailController(request, response) {
     try {
-        const { code } = request.body
+        const { email, otp } = request.body
 
-        const user = await UserModel.findOne({ _id: code })
-
-        if (!user) {
+        if (!email || !otp) {
             return response.status(400).json({
-                message: "Invalid code",
+                message: "Provide email and OTP",
                 error: true,
                 success: false
             })
         }
 
-        const updateUser = await UserModel.updateOne({ _id: code }, {
-            verify_email: true
+        const user = await UserModel.findOne({ email })
+
+        if (!user) {
+            return response.status(400).json({
+                message: "User not found",
+                error: true,
+                success: false
+            })
+        }
+
+        if (user.verify_email) {
+            return response.status(400).json({
+                message: "Email already verified",
+                error: true,
+                success: false
+            })
+        }
+
+        const currentTime = new Date().toISOString()
+
+        if (user.verify_email_expiry < currentTime) {
+            return response.status(400).json({
+                message: "OTP is expired",
+                error: true,
+                success: false
+            })
+        }
+
+        if (otp !== user.verify_email_otp) {
+            return response.status(400).json({
+                message: "Invalid OTP",
+                error: true,
+                success: false
+            })
+        }
+
+        const updateUser = await UserModel.findByIdAndUpdate(user._id, {
+            verify_email: true,
+            verify_email_otp: "",
+            verify_email_expiry: ""
         })
 
+        const accesstoken = await generatedAccessToken(user._id)
+        const refreshToken = await genertedRefreshToken(user._id)
+
+        const cookiesOption = {
+            httpOnly: true,
+            secure: true,
+            sameSite: "None"
+        }
+        response.cookie('accessToken', accesstoken, cookiesOption)
+        response.cookie('refreshToken', refreshToken, cookiesOption)
+
         return response.json({
-            message: "Verify email done",
+            message: "Email verified successfully",
             success: true,
-            error: false
+            error: false,
+            data: {
+                accesstoken,
+                refreshToken
+            }
         })
     } catch (error) {
         return response.status(500).json({
             message: error.message || error,
             error: true,
-            success: true
+            success: false
         })
     }
 }
@@ -129,6 +186,14 @@ export async function loginController(request, response) {
         if (user.status !== "Active") {
             return response.status(400).json({
                 message: "Contact to Admin",
+                error: true,
+                success: false
+            })
+        }
+
+        if (!user.verify_email) {
+            return response.status(400).json({
+                message: "Please verify your email first",
                 error: true,
                 success: false
             })
@@ -303,7 +368,7 @@ export async function forgotPasswordController(request, response) {
 
         await sendEmail({
             sendTo: email,
-            subject: "Forgot password from Binkeyit",
+            subject: "Forgot password from Gram2ghor",
             html: forgotPasswordTemplate({
                 name: user.name,
                 otp: otp
@@ -717,6 +782,68 @@ export async function createAdminUser(request, response) {
                 role: newAdmin.role
             }
         })
+    } catch (error) {
+        return response.status(500).json({
+            message: error.message || error,
+            error: true,
+            success: false
+        })
+    }
+}
+
+export async function resendVerifyOtpController(request, response) {
+    try {
+        const { email } = request.body
+
+        if (!email) {
+            return response.status(400).json({
+                message: "Provide email",
+                error: true,
+                success: false
+            })
+        }
+
+        const user = await UserModel.findOne({ email })
+
+        if (!user) {
+            return response.status(400).json({
+                message: "User not found",
+                error: true,
+                success: false
+            })
+        }
+
+        if (user.verify_email) {
+            return response.status(400).json({
+                message: "Email already verified",
+                error: true,
+                success: false
+            })
+        }
+
+        const otp = generatedOtp()
+        const expireTime = new Date() + 60 * 60 * 1000
+
+        await UserModel.findByIdAndUpdate(user._id, {
+            verify_email_otp: otp,
+            verify_email_expiry: new Date(expireTime).toISOString()
+        })
+
+        await sendEmail({
+            sendTo: email,
+            subject: "Resend: Verify email from Gram2ghor",
+            html: verifyEmailTemplate({
+                name: user.name,
+                otp: otp
+            })
+        })
+
+        return response.json({
+            message: "OTP sent successfully",
+            error: false,
+            success: true
+        })
+
     } catch (error) {
         return response.status(500).json({
             message: error.message || error,

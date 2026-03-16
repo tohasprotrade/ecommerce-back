@@ -258,7 +258,7 @@ export async function guestCheckoutController(request,response){
 
             const newUser = new UserModel({
                 name: guestName,
-                email: `guest_${mobile}@binkeyit.com`,
+                email: `guest_${mobile}@gram2ghor.com`,
                 mobile: String(mobile),
                 password: hashPassword,
                 role: 'USER',

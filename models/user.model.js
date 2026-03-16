@@ -65,6 +65,14 @@ const userSchema = new mongoose.Schema({
         type : Date,
         default : ""
     },
+    verify_email_otp : {
+        type : String,
+        default : null
+    },
+    verify_email_expiry : {
+        type : Date,
+        default : ""
+    },
     role : {
         type : String,
         enum : ['SUPER_ADMIN', 'ADMIN', "USER"],
