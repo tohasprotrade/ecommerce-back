@@ -16,9 +16,10 @@ import addressRouter from './route/address.route.js'
 import orderRouter from './route/order.route.js'
 
 const app = express()
+const frontendUrl = (process.env.FRONTEND_URL || 'https://ecommerce-front-taupe.vercel.app').replace(/\/$/, '')
 app.use(cors({
     credentials : true,
-    origin : process.env.FRONTEND_URL || '*'  // Set FRONTEND_URL in Render env vars
+    origin : [frontendUrl, 'https://ecommerce-front-taupe.vercel.app/']
 }))
 app.use(express.json())
 app.use(cookieParser())
