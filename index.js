@@ -17,10 +17,22 @@ import orderRouter from './route/order.route.js'
 
 const app = express()
 const frontendUrl = (process.env.FRONTEND_URL || 'https://ecommerce-front-taupe.vercel.app').replace(/\/$/, '')
-app.use(cors({
-    credentials : true,
-    origin : [frontendUrl, 'https://ecommerce-front-taupe.vercel.app/']
-}))
+const corsOptions = {
+    credentials: true,
+    origin: function(origin, callback) {
+        const allowedOrigins = [
+            frontendUrl,
+            'http://localhost:3000',
+            'http://localhost:5173'
+        ];
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(null, true);
+        }
+    }
+}
+app.use(cors(corsOptions))
 app.use(express.json())
 app.use(cookieParser())
 app.use(morgan('dev'))
