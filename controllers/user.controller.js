@@ -565,7 +565,14 @@ export async function userDetails(request, response) {
     try {
         const userId = request.userId
 
-        console.log(userId)
+        if(!userId){
+            return response.json({
+                message: 'user details',
+                data: null,
+                error: false,
+                success: true
+            })
+        }
 
         const user = await UserModel.findById(userId).select('-password -refresh_token')
 
