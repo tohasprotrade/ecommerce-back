@@ -518,3 +518,44 @@ export async function updateOrderController(request, response) {
         })
     }
 }
+
+//Track order by order ID (no auth required)
+export async function trackOrderController(request, response) {
+    try {
+        const { orderId } = request.query;
+
+        if (!orderId) {
+            return response.status(400).json({
+                message: "Order ID is required",
+                error: true,
+                success: false
+            });
+        }
+
+        const order = await OrderModel.findOne({ orderId: orderId })
+            .populate('delivery_address')
+            .populate('productId', 'name image');
+
+        if (!order) {
+            return response.status(404).json({
+                message: "Order not found",
+                error: true,
+                success: false
+            });
+        }
+
+        return response.json({
+            message: "Order details",
+            data: order,
+            error: false,
+            success: true
+        });
+
+    } catch (error) {
+        return response.status(500).json({
+            message: error.message || error,
+            error: true,
+            success: false
+        });
+    }
+}

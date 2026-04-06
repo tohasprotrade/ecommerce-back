@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import auth from '../middleware/auth.js'
 import { admin } from '../middleware/Admin.js'
-import { CashOnDeliveryOrderController, getOrderDetailsController, paymentController, webhookStripe, guestCheckoutController, getAllOrdersController, getAllProductsStockController, updateOrderController } from '../controllers/order.controller.js'
+import { CashOnDeliveryOrderController, getOrderDetailsController, paymentController, webhookStripe, guestCheckoutController, getAllOrdersController, getAllProductsStockController, updateOrderController, trackOrderController } from '../controllers/order.controller.js'
 
 const orderRouter = Router()
 
@@ -17,5 +17,8 @@ orderRouter.get('/all-products-stock', auth, admin, getAllProductsStockControlle
 
 //Update order (delivery date, status) - Admin/Super Admin
 orderRouter.put('/update-order', auth, admin, updateOrderController)
+
+//Track order - for guests too (no auth required)
+orderRouter.get('/track', trackOrderController)
 
 export default orderRouter

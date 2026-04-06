@@ -14,6 +14,7 @@ import productRouter from './route/product.route.js'
 import cartRouter from './route/cart.route.js'
 import addressRouter from './route/address.route.js'
 import orderRouter from './route/order.route.js'
+import wishlistRouter from './route/wishlist.route.js'
 
 const app = express()
 const frontendUrl = (process.env.FRONTEND_URL || 'https://ecommerce-front-taupe.vercel.app').replace(/\/$/, '')
@@ -57,6 +58,7 @@ app.use("/api/product",productRouter)
 app.use("/api/cart",cartRouter)
 app.use("/api/address",addressRouter)
 app.use('/api/order',orderRouter)
+app.use('/api/wishlist',wishlistRouter)
 
 connectDB().then(()=>{
     app.listen(PORT,()=>{
